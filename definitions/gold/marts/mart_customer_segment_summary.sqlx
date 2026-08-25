@@ -1,0 +1,35 @@
+config {
+  type: "table",
+
+  schema: "olist_gold",
+
+  name: "mart_customer_segment_summary",
+
+  tags: ["phase_10", "quality"]
+}
+
+SELECT
+
+  customer_segment,
+
+  customer_value_segment,
+
+  COUNT(*) AS customer_count,
+
+  SUM(total_orders) AS total_orders,
+
+  SUM(total_gross_value) AS total_gross_value,
+
+  AVG(total_orders) AS avg_orders_per_customer,
+
+  AVG(avg_order_value) AS avg_customer_order_value,
+
+  AVG(avg_review_score) AS avg_review_score,
+
+  AVG(recency_days) AS avg_recency_days
+
+FROM ${ref("mart_customer_analytics")}
+
+GROUP BY
+  customer_segment,
+  customer_value_segment

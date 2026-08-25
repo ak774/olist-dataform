@@ -1,0 +1,5 @@
+defaultProject: olist-batch-etl
+defaultDataset: olist_silver
+defaultAssertionDataset: dataform_assertions
+defaultLocation: asia-south1
+dataformCoreVersion: 3.0.52

@@ -1,0 +1,39 @@
+config {
+  type: "table",
+
+  schema: "olist_gold",
+
+  name: "mart_seller_state_summary",
+
+  tags: ["phase_10", "quality"]
+}
+
+SELECT
+
+  seller_state,
+
+  COUNT(*) AS seller_count,
+
+  SUM(total_orders) AS total_orders,
+
+  SUM(total_items_sold) AS total_items_sold,
+
+  SUM(total_item_revenue) AS total_item_revenue,
+
+  SUM(total_freight_revenue) AS total_freight_revenue,
+
+  SUM(total_gross_value) AS total_gross_value,
+
+  AVG(avg_gross_value_per_order) AS avg_gross_value_per_order,
+
+  AVG(avg_review_score) AS avg_review_score,
+
+  AVG(delivery_rate) AS avg_delivery_rate,
+
+  AVG(delayed_delivery_rate) AS avg_delayed_delivery_rate
+
+FROM ${ref("mart_seller_performance")}
+
+WHERE seller_state IS NOT NULL
+
+GROUP BY seller_state

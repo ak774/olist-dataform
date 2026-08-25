@@ -1,0 +1,30 @@
+config {
+  type: "table",
+
+  schema: "olist_gold",
+
+  name: "mart_sales_payment_reconciliation",
+
+  tags: ["phase_10", "reconciliation"]
+}
+
+SELECT
+
+  purchase_month,
+
+  SUM(total_gross_value) AS gross_value,
+
+  SUM(total_payment_value) AS payment_value,
+
+  SUM(total_payment_value)
+    - SUM(total_gross_value) AS payment_difference,
+
+  SAFE_DIVIDE(
+    SUM(total_payment_value)
+      - SUM(total_gross_value),
+    NULLIF(SUM(total_gross_value), 0)
+  ) AS payment_difference_rate
+
+FROM ${ref("mart_sales_summary")}
+
+GROUP BY purchase_month

@@ -1,0 +1,33 @@
+config {
+  type: "assertion",
+  schema: "olist_assertions",
+  name: "orders_valid_dates",
+  tags: ["phase_10", "quality", "silver"]
+}
+
+SELECT
+  order_id,
+  order_status,
+  order_purchase_ts,
+  order_approved_ts,
+  order_delivered_carrier_ts,
+  order_delivered_customer_ts
+
+FROM ${ref("orders")}
+
+WHERE
+
+  -- Mandatory business event
+  order_purchase_ts IS NULL
+
+  -- An approval cannot precede the purchase
+  OR (
+    order_approved_ts IS NOT NULL
+    AND order_approved_ts < order_purchase_ts
+  )
+
+  -- A customer delivery cannot precede the purchase
+  OR (
+    order_delivered_customer_ts IS NOT NULL
+    AND order_delivered_customer_ts < order_purchase_ts
+  )

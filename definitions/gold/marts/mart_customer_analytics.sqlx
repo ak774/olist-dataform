@@ -1,0 +1,429 @@
+config {
+  type: "table",
+
+  schema: "olist_gold",
+
+  name: "mart_customer_analytics",
+
+  tags: ["phase_9", "gold", "mart"],
+
+  assertions: {
+    nonNull: [
+      "customer_unique_id"
+    ],
+
+    uniqueKey: [
+      "customer_unique_id"
+    ]
+  },
+
+  bigquery: {
+    clusterBy: [
+      "customer_state",
+      "customer_segment"
+    ]
+  }
+}
+
+WITH customer_location AS (
+
+  SELECT
+    customer_unique_id,
+    ANY_VALUE(customer_city) AS customer_city,
+    ANY_VALUE(customer_state) AS customer_state
+
+  FROM ${ref("dim_customers")}
+
+  GROUP BY customer_unique_id
+
+),
+
+order_customer AS (
+
+  SELECT
+
+    customer_unique_id,
+
+    COUNT(DISTINCT order_id) AS total_orders,
+
+    COUNTIF(is_delivered) AS delivered_orders,
+
+    COUNTIF(is_canceled) AS canceled_orders,
+
+    MIN(DATE(order_purchase_timestamp)) AS first_purchase_date,
+
+    MAX(DATE(order_purchase_timestamp)) AS last_purchase_date,
+
+    DATE_DIFF(
+      MAX(DATE(order_purchase_timestamp)),
+      MIN(DATE(order_purchase_timestamp)),
+      DAY
+    ) AS customer_lifetime_days
+
+  FROM ${ref("fact_orders")}
+
+  WHERE customer_unique_id IS NOT NULL
+    AND order_purchase_timestamp IS NOT NULL
+
+  GROUP BY customer_unique_id
+
+),
+
+item_customer AS (
+
+  SELECT
+
+    customer_unique_id,
+
+    COUNT(*) AS total_items_purchased,
+
+    COUNT(DISTINCT product_id) AS distinct_products_purchased,
+
+    COUNT(DISTINCT seller_id) AS distinct_sellers_purchased_from,
+
+    SUM(item_price) AS total_item_revenue,
+
+    SUM(freight_value) AS total_freight_value,
+
+    SUM(gross_item_value) AS total_gross_value
+
+  FROM ${ref("fact_order_items")}
+
+  WHERE customer_unique_id IS NOT NULL
+
+  GROUP BY customer_unique_id
+
+),
+
+payment_customer AS (
+
+  SELECT
+
+    customer_unique_id,
+
+    COUNT(DISTINCT order_id) AS orders_with_payments,
+
+    COUNT(*) AS total_payment_records,
+
+    SUM(payment_value) AS total_payment_value,
+
+    AVG(payment_installments) AS avg_payment_installments,
+
+    COUNTIF(payment_type = 'credit_card') AS credit_card_payment_records,
+
+    COUNTIF(payment_type = 'boleto') AS boleto_payment_records,
+
+    COUNTIF(payment_type = 'voucher') AS voucher_payment_records,
+
+    COUNTIF(payment_type = 'debit_card') AS debit_card_payment_records
+
+  FROM ${ref("fact_payments")}
+
+  WHERE customer_unique_id IS NOT NULL
+
+  GROUP BY customer_unique_id
+
+),
+
+review_customer AS (
+
+  SELECT
+
+    customer_unique_id,
+
+    COUNT(*) AS total_reviews,
+
+    AVG(review_score) AS avg_review_score,
+
+    MIN(review_score) AS min_review_score,
+
+    MAX(review_score) AS max_review_score,
+
+    COUNTIF(review_sentiment = 'positive') AS positive_review_count,
+
+    COUNTIF(review_sentiment = 'neutral') AS neutral_review_count,
+
+    COUNTIF(review_sentiment = 'negative') AS negative_review_count,
+
+    COUNTIF(has_review_comment) AS reviews_with_comments
+
+  FROM ${ref("fact_reviews")}
+
+  WHERE customer_unique_id IS NOT NULL
+
+  GROUP BY customer_unique_id
+
+),
+
+customer_purchase_intervals AS (
+
+  SELECT
+
+    customer_unique_id,
+
+    AVG(days_since_previous_order) AS avg_days_between_orders
+
+  FROM (
+
+    SELECT
+
+      customer_unique_id,
+
+      DATE_DIFF(
+        DATE(order_purchase_timestamp),
+        LAG(DATE(order_purchase_timestamp)) OVER (
+          PARTITION BY customer_unique_id
+          ORDER BY order_purchase_timestamp
+        ),
+        DAY
+      ) AS days_since_previous_order
+
+    FROM ${ref("fact_orders")}
+
+    WHERE customer_unique_id IS NOT NULL
+      AND order_purchase_timestamp IS NOT NULL
+
+  )
+
+  GROUP BY customer_unique_id
+
+),
+
+customer_metrics AS (
+
+  SELECT
+
+    o.customer_unique_id,
+
+    l.customer_city,
+
+    l.customer_state,
+
+
+    -- =========================================================
+    -- Order metrics
+    -- =========================================================
+
+    o.total_orders,
+
+    o.delivered_orders,
+
+    o.canceled_orders,
+
+    o.first_purchase_date,
+
+    o.last_purchase_date,
+
+    o.customer_lifetime_days,
+
+    pi.avg_days_between_orders,
+
+
+    -- =========================================================
+    -- Product and revenue metrics
+    -- =========================================================
+
+    COALESCE(i.total_items_purchased, 0) AS total_items_purchased,
+
+    COALESCE(i.distinct_products_purchased, 0)
+      AS distinct_products_purchased,
+
+    COALESCE(i.distinct_sellers_purchased_from, 0)
+      AS distinct_sellers_purchased_from,
+
+    COALESCE(i.total_item_revenue, 0)
+      AS total_item_revenue,
+
+    COALESCE(i.total_freight_value, 0)
+      AS total_freight_value,
+
+    COALESCE(i.total_gross_value, 0)
+      AS total_gross_value,
+
+
+    -- =========================================================
+    -- Payment metrics
+    -- =========================================================
+
+    COALESCE(p.orders_with_payments, 0)
+      AS orders_with_payments,
+
+    COALESCE(p.total_payment_records, 0)
+      AS total_payment_records,
+
+    COALESCE(p.total_payment_value, 0)
+      AS total_payment_value,
+
+    p.avg_payment_installments,
+
+    COALESCE(p.credit_card_payment_records, 0)
+      AS credit_card_payment_records,
+
+    COALESCE(p.boleto_payment_records, 0)
+      AS boleto_payment_records,
+
+    COALESCE(p.voucher_payment_records, 0)
+      AS voucher_payment_records,
+
+    COALESCE(p.debit_card_payment_records, 0)
+      AS debit_card_payment_records,
+
+
+    -- =========================================================
+    -- Review metrics
+    -- =========================================================
+
+    COALESCE(r.total_reviews, 0)
+      AS total_reviews,
+
+    r.avg_review_score,
+
+    r.min_review_score,
+
+    r.max_review_score,
+
+    COALESCE(r.positive_review_count, 0)
+      AS positive_review_count,
+
+    COALESCE(r.neutral_review_count, 0)
+      AS neutral_review_count,
+
+    COALESCE(r.negative_review_count, 0)
+      AS negative_review_count,
+
+    COALESCE(r.reviews_with_comments, 0)
+      AS reviews_with_comments
+
+
+  FROM order_customer AS o
+
+  LEFT JOIN customer_location AS l
+    ON o.customer_unique_id = l.customer_unique_id
+
+  LEFT JOIN item_customer AS i
+    ON o.customer_unique_id = i.customer_unique_id
+
+  LEFT JOIN payment_customer AS p
+    ON o.customer_unique_id = p.customer_unique_id
+
+  LEFT JOIN review_customer AS r
+    ON o.customer_unique_id = r.customer_unique_id
+
+  LEFT JOIN customer_purchase_intervals AS pi
+    ON o.customer_unique_id = pi.customer_unique_id
+
+)
+
+SELECT
+
+  *,
+
+  -- =========================================================
+  -- Derived KPIs
+  -- =========================================================
+
+  SAFE_DIVIDE(
+    total_gross_value,
+    total_orders
+  ) AS avg_order_value,
+
+
+  SAFE_DIVIDE(
+    total_item_revenue,
+    total_orders
+  ) AS avg_item_revenue_per_order,
+
+
+  SAFE_DIVIDE(
+    total_freight_value,
+    total_orders
+  ) AS avg_freight_per_order,
+
+
+  SAFE_DIVIDE(
+    total_items_purchased,
+    total_orders
+  ) AS avg_items_per_order,
+
+
+  SAFE_DIVIDE(
+    delivered_orders,
+    total_orders
+  ) AS delivery_rate,
+
+
+  SAFE_DIVIDE(
+    canceled_orders,
+    total_orders
+  ) AS cancellation_rate,
+
+
+  SAFE_DIVIDE(
+    reviews_with_comments,
+    total_reviews
+  ) AS review_comment_rate,
+
+
+  SAFE_DIVIDE(
+    positive_review_count,
+    total_reviews
+  ) AS positive_review_rate,
+
+
+  SAFE_DIVIDE(
+    negative_review_count,
+    total_reviews
+  ) AS negative_review_rate,
+
+
+  -- =========================================================
+  -- Customer segmentation
+  -- =========================================================
+
+  CASE
+
+    WHEN total_orders = 1
+    THEN 'one_time'
+
+    WHEN total_orders BETWEEN 2 AND 3
+    THEN 'repeat'
+
+    WHEN total_orders >= 4
+    THEN 'loyal'
+
+    ELSE 'unknown'
+
+  END AS customer_segment,
+
+
+  -- =========================================================
+  -- Value segmentation
+  -- =========================================================
+
+  CASE
+
+    WHEN total_gross_value >= 1000
+    THEN 'high_value'
+
+    WHEN total_gross_value >= 500
+    THEN 'medium_value'
+
+    WHEN total_gross_value > 0
+    THEN 'standard_value'
+
+    ELSE 'no_purchase_value'
+
+  END AS customer_value_segment,
+
+
+  -- =========================================================
+  -- Purchase recency relative to the dataset's latest purchase
+  -- =========================================================
+
+  DATE_DIFF(
+    MAX(last_purchase_date) OVER (),
+    last_purchase_date,
+    DAY
+  ) AS recency_days
+
+FROM customer_metrics

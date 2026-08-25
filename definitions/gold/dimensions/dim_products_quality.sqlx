@@ -1,0 +1,42 @@
+config {
+  type: "assertion",
+
+  schema: "olist_assertions",
+
+  name: "dim_products_valid_values",
+
+  tags: ["phase_10", "quality"]
+}
+
+SELECT
+  product_id,
+  product_volume_cm3,
+  product_weight_g,
+  product_size_category,
+  product_weight_category
+
+FROM ${ref("dim_products")}
+
+WHERE
+
+  product_id IS NULL
+
+  OR product_volume_cm3 < 0
+
+  OR product_weight_g < 0
+
+  OR product_size_category NOT IN (
+    'unknown',
+    'small',
+    'medium',
+    'large',
+    'extra_large'
+  )
+
+  OR product_weight_category NOT IN (
+    'unknown',
+    'light',
+    'medium',
+    'heavy',
+    'very_heavy'
+  )

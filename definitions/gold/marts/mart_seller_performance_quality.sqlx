@@ -1,0 +1,57 @@
+config {
+  type: "assertion",
+
+  schema: "olist_assertions",
+
+  name: "mart_seller_performance_valid_values",
+
+  tags: ["phase_10", "quality"]
+}
+
+SELECT
+
+  seller_id,
+
+  total_orders,
+
+  total_items_sold,
+
+  total_gross_value,
+
+  delivered_orders,
+
+  canceled_orders,
+
+  delayed_orders,
+
+  total_associated_reviews,
+
+  avg_review_score
+
+FROM ${ref("mart_seller_performance")}
+
+WHERE
+
+  seller_id IS NULL
+
+  OR total_orders <= 0
+
+  OR total_items_sold < 0
+
+  OR total_gross_value < 0
+
+  OR delivered_orders < 0
+
+  OR canceled_orders < 0
+
+  OR delayed_orders < 0
+
+  OR delivered_orders > total_orders
+
+  OR canceled_orders > total_orders
+
+  OR delayed_orders > delivered_orders
+
+  OR total_associated_reviews < 0
+
+  OR avg_review_score NOT BETWEEN 1 AND 5

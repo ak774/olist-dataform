@@ -1,0 +1,39 @@
+config {
+  type: "table",
+
+  schema: "olist_gold",
+
+  name: "dim_products_attribute_quality",
+
+  tags: ["phase_10", "quality"]
+}
+
+SELECT
+
+  COUNT(*) AS total_products,
+
+  COUNTIF(
+    product_weight_g IS NULL
+  ) AS products_without_weight,
+
+  COUNTIF(
+    product_volume_cm3 IS NULL
+  ) AS products_without_volume,
+
+  COUNTIF(
+    product_photos_qty IS NULL
+  ) AS products_without_photo_count,
+
+  COUNTIF(
+    product_description_length IS NULL
+  ) AS products_without_description_length,
+
+  COUNTIF(
+    product_weight_category = 'unknown'
+  ) AS products_with_unknown_weight_category,
+
+  COUNTIF(
+    product_size_category = 'unknown'
+  ) AS products_with_unknown_size_category
+
+FROM ${ref("dim_products")}

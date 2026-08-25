@@ -1,0 +1,55 @@
+config {
+  type: "assertion",
+
+  schema: "olist_assertions",
+
+  name: "mart_sales_summary_valid_values",
+
+  tags: ["phase_10", "quality"]
+}
+
+SELECT
+
+  purchase_date,
+
+  total_orders,
+
+  delivered_orders,
+
+  canceled_orders,
+
+  total_items_sold,
+
+  total_item_revenue,
+
+  total_freight_revenue,
+
+  total_gross_value,
+
+  total_payment_value
+
+FROM ${ref("mart_sales_summary")}
+
+WHERE
+
+  purchase_date IS NULL
+
+  OR total_orders < 0
+
+  OR delivered_orders < 0
+
+  OR canceled_orders < 0
+
+  OR delivered_orders > total_orders
+
+  OR canceled_orders > total_orders
+
+  OR total_items_sold < 0
+
+  OR total_item_revenue < 0
+
+  OR total_freight_revenue < 0
+
+  OR total_gross_value < 0
+
+  OR total_payment_value < 0

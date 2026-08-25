@@ -1,0 +1,77 @@
+config {
+  type: "table",
+
+  schema: "olist_silver",
+
+  name: "sellers",
+
+  tags: ["phase_8", "silver"],
+
+  assertions: {
+    nonNull: [
+      "seller_id",
+      "seller_zip_code_prefix",
+      "seller_city",
+      "seller_state"
+    ],
+
+    uniqueKey: [
+      "seller_id"
+    ]
+  },
+
+  bigquery: {
+    clusterBy: [
+      "seller_state",
+      "seller_city"
+    ]
+  }
+}
+
+WITH cleaned AS (
+
+  SELECT
+
+    TRIM(seller_id) AS seller_id,
+
+    SAFE_CAST(
+      seller_zip_code_prefix AS INT64
+    ) AS seller_zip_code_prefix,
+
+    LOWER(
+      TRIM(seller_city)
+    ) AS seller_city,
+
+    UPPER(
+      TRIM(seller_state)
+    ) AS seller_state
+
+  FROM ${ref("sellers_staging")}
+
+),
+
+deduplicated AS (
+
+  SELECT *
+
+  FROM cleaned
+
+  QUALIFY ROW_NUMBER() OVER (
+    PARTITION BY seller_id
+    ORDER BY
+      seller_state,
+      seller_city,
+      seller_zip_code_prefix
+  ) = 1
+
+)
+
+SELECT
+  seller_id,
+  seller_zip_code_prefix,
+  seller_city,
+  seller_state
+
+FROM deduplicated
+
+WHERE seller_id IS NOT NULL

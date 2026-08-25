@@ -1,0 +1,39 @@
+config {
+  type: "table",
+
+  schema: "olist_silver",
+
+  name: "reviews_quality_metrics",
+
+  tags: ["phase_10", "quality", "silver"]
+}
+
+SELECT
+  COUNT(*) AS total_reviews,
+
+  COUNT(DISTINCT order_id) AS distinct_reviewed_orders,
+
+  COUNTIF(review_score IS NULL) AS null_review_score_count,
+
+  COUNTIF(review_score < 1 OR review_score > 5)
+    AS invalid_review_score_count,
+
+  COUNTIF(
+    review_comment_title IS NOT NULL
+    OR review_comment_message IS NOT NULL
+  ) AS reviews_with_comments,
+
+  COUNTIF(
+    review_comment_title IS NULL
+    AND review_comment_message IS NULL
+  ) AS reviews_without_comments,
+
+  COUNTIF(
+    review_answer_ts IS NOT NULL
+    AND review_creation_ts IS NOT NULL
+    AND review_answer_ts < review_creation_ts
+  ) AS answer_before_creation_count,
+
+  AVG(review_score) AS average_review_score
+
+FROM ${ref("reviews")}

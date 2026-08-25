@@ -1,0 +1,65 @@
+config {
+  type: "table",
+
+  schema: "olist_silver",
+
+  name: "category_translation",
+
+  tags: ["phase_8", "silver"],
+
+  assertions: {
+    nonNull: [
+      "product_category_name",
+      "product_category_name_english"
+    ],
+
+    uniqueKey: [
+      "product_category_name"
+    ]
+  },
+
+  bigquery: {
+    clusterBy: [
+      "product_category_name"
+    ]
+  }
+}
+
+WITH cleaned AS (
+
+  SELECT
+
+    NULLIF(
+      LOWER(TRIM(product_category_name)),
+      ''
+    ) AS product_category_name,
+
+    NULLIF(
+      LOWER(TRIM(product_category_name_english)),
+      ''
+    ) AS product_category_name_english
+
+  FROM ${ref("category_translation_staging")}
+
+),
+
+deduplicated AS (
+
+  SELECT *
+
+  FROM cleaned
+
+  WHERE product_category_name IS NOT NULL
+
+  QUALIFY ROW_NUMBER() OVER (
+    PARTITION BY product_category_name
+    ORDER BY product_category_name_english
+  ) = 1
+
+)
+
+SELECT
+  product_category_name,
+  product_category_name_english
+
+FROM deduplicated

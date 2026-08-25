@@ -1,0 +1,39 @@
+config {
+  type: "table",
+
+  schema: "olist_silver",
+
+  name: "payments_quality_metrics",
+
+  tags: ["phase_10", "quality", "silver"]
+}
+
+SELECT
+  COUNT(*) AS total_payment_records,
+
+  COUNT(DISTINCT order_id) AS distinct_orders_with_payments,
+
+  COUNTIF(payment_value IS NULL) AS null_payment_value_count,
+
+  COUNTIF(payment_value < 0) AS negative_payment_value_count,
+
+  COUNTIF(payment_type IS NULL OR payment_type = '')
+    AS invalid_payment_type_count,
+
+  SUM(payment_value) AS total_payment_value,
+
+  AVG(payment_value) AS avg_payment_value,
+
+  COUNTIF(payment_type = 'credit_card')
+    AS credit_card_payment_count,
+
+  COUNTIF(payment_type = 'boleto')
+    AS boleto_payment_count,
+
+  COUNTIF(payment_type = 'voucher')
+    AS voucher_payment_count,
+
+  COUNTIF(payment_type = 'debit_card')
+    AS debit_card_payment_count
+
+FROM ${ref("payments")}

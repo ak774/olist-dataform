@@ -1,0 +1,96 @@
+config {
+  type: "table",
+
+  schema: "olist_gold",
+
+  name: "dim_customers",
+
+  tags: ["phase_9", "gold", "dimension"],
+
+  assertions: {
+    nonNull: [
+      "customer_unique_id"
+    ],
+
+    uniqueKey: [
+      "customer_unique_id"
+    ]
+  },
+
+  bigquery: {
+    clusterBy: [
+      "customer_state",
+      "customer_city"
+    ]
+  }
+}
+
+WITH customer_records AS (
+
+  SELECT
+    customer_unique_id,
+    customer_id,
+    customer_zip_code_prefix,
+    customer_city,
+    customer_state
+  FROM ${ref("customers")}
+
+),
+
+customer_aggregated AS (
+
+  SELECT
+
+    customer_unique_id,
+
+    COUNT(DISTINCT customer_id) AS customer_record_count,
+
+    ARRAY_AGG(
+      customer_zip_code_prefix
+      IGNORE NULLS
+      ORDER BY customer_id
+      LIMIT 1
+    )[SAFE_OFFSET(0)] AS customer_zip_code_prefix,
+
+    ARRAY_AGG(
+      customer_city
+      IGNORE NULLS
+      ORDER BY customer_id
+      LIMIT 1
+    )[SAFE_OFFSET(0)] AS customer_city,
+
+    ARRAY_AGG(
+      customer_state
+      IGNORE NULLS
+      ORDER BY customer_id
+      LIMIT 1
+    )[SAFE_OFFSET(0)] AS customer_state
+
+  FROM customer_records
+
+  WHERE customer_unique_id IS NOT NULL
+
+  GROUP BY customer_unique_id
+
+)
+
+SELECT
+
+  c.customer_unique_id,
+
+  c.customer_record_count,
+
+  c.customer_zip_code_prefix,
+
+  c.customer_city,
+
+  c.customer_state,
+
+  g.latitude AS customer_latitude,
+
+  g.longitude AS customer_longitude
+
+FROM customer_aggregated AS c
+
+LEFT JOIN ${ref("geolocation")} AS g
+  ON c.customer_zip_code_prefix = g.zip_code_prefix

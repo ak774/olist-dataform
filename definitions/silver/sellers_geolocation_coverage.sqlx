@@ -1,0 +1,30 @@
+config {
+  type: "table",
+
+  schema: "olist_silver",
+
+  name: "sellers_geolocation_coverage",
+
+  tags: ["phase_10", "quality"]
+}
+
+SELECT
+  COUNT(*) AS total_sellers,
+
+  COUNTIF(
+    g.zip_code_prefix IS NOT NULL
+  ) AS sellers_with_geolocation,
+
+  COUNTIF(
+    g.zip_code_prefix IS NULL
+  ) AS sellers_without_geolocation,
+
+  SAFE_DIVIDE(
+    COUNTIF(g.zip_code_prefix IS NOT NULL),
+    COUNT(*)
+  ) AS geolocation_match_rate
+
+FROM ${ref("sellers")} AS s
+
+LEFT JOIN ${ref("geolocation")} AS g
+  ON s.seller_zip_code_prefix = g.zip_code_prefix

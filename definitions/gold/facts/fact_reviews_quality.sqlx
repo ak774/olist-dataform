@@ -1,0 +1,33 @@
+config {
+  type: "assertion",
+
+  schema: "olist_assertions",
+
+  name: "fact_reviews_valid_values",
+
+  tags: ["phase_10", "quality"]
+}
+
+SELECT
+
+  review_id,
+
+  order_id,
+
+  review_score,
+
+  review_response_time_hours
+
+FROM ${ref("fact_reviews")}
+
+WHERE
+
+  review_id IS NULL
+
+  OR order_id IS NULL
+
+  OR review_score IS NULL
+
+  OR review_score NOT BETWEEN 1 AND 5
+
+  OR review_response_time_hours < 0

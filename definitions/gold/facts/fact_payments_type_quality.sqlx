@@ -1,0 +1,24 @@
+config {
+  type: "assertion",
+
+  schema: "olist_assertions",
+
+  name: "fact_payments_valid_types",
+
+  tags: ["phase_10", "quality"]
+}
+
+SELECT
+  order_id,
+  payment_sequential,
+  payment_type
+
+FROM ${ref("fact_payments")}
+
+WHERE payment_type NOT IN (
+  'credit_card',
+  'boleto',
+  'voucher',
+  'debit_card',
+  'not_defined'
+)

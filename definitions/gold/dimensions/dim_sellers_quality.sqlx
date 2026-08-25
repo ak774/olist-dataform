@@ -1,0 +1,33 @@
+config {
+  type: "assertion",
+
+  schema: "olist_assertions",
+
+  name: "dim_sellers_valid_values",
+
+  tags: ["phase_10", "quality"]
+}
+
+SELECT
+  seller_id,
+  seller_zip_code_prefix,
+  seller_state,
+  seller_latitude,
+  seller_longitude
+
+FROM ${ref("dim_sellers")}
+
+WHERE
+
+  seller_id IS NULL
+
+  OR seller_zip_code_prefix <= 0
+
+  OR seller_state IS NOT NULL
+     AND LENGTH(seller_state) != 2
+
+  OR seller_latitude IS NOT NULL
+     AND seller_latitude NOT BETWEEN -90 AND 90
+
+  OR seller_longitude IS NOT NULL
+     AND seller_longitude NOT BETWEEN -180 AND 180

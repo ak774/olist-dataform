@@ -1,0 +1,55 @@
+config {
+  type: "assertion",
+
+  schema: "olist_assertions",
+
+  name: "mart_customer_analytics_valid_values",
+
+  tags: ["phase_10", "quality"]
+}
+
+SELECT
+
+  customer_unique_id,
+
+  total_orders,
+
+  delivered_orders,
+
+  canceled_orders,
+
+  total_items_purchased,
+
+  total_gross_value,
+
+  total_payment_value,
+
+  total_reviews,
+
+  avg_review_score
+
+FROM ${ref("mart_customer_analytics")}
+
+WHERE
+
+  customer_unique_id IS NULL
+
+  OR total_orders <= 0
+
+  OR delivered_orders < 0
+
+  OR canceled_orders < 0
+
+  OR delivered_orders > total_orders
+
+  OR canceled_orders > total_orders
+
+  OR total_items_purchased < 0
+
+  OR total_gross_value < 0
+
+  OR total_payment_value < 0
+
+  OR total_reviews < 0
+
+  OR avg_review_score NOT BETWEEN 1 AND 5

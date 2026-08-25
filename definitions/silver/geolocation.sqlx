@@ -1,0 +1,120 @@
+config {
+  type: "table",
+
+  schema: "olist_silver",
+
+  name: "geolocation",
+
+  tags: ["phase_8", "silver"],
+
+  assertions: {
+    nonNull: [
+      "zip_code_prefix",
+      "latitude",
+      "longitude"
+    ],
+
+    uniqueKey: [
+      "zip_code_prefix"
+    ],
+
+    rowConditions: [
+      "latitude BETWEEN -90 AND 90",
+      "longitude BETWEEN -180 AND 180"
+    ]
+  },
+
+  bigquery: {
+    clusterBy: [
+      "geolocation_state",
+      "geolocation_city"
+    ]
+  }
+}
+
+WITH cleaned AS (
+
+  SELECT
+
+    SAFE_CAST(
+      geolocation_zip_code_prefix AS INT64
+    ) AS zip_code_prefix,
+
+    SAFE_CAST(
+      geolocation_lat AS FLOAT64
+    ) AS latitude,
+
+    SAFE_CAST(
+      geolocation_lng AS FLOAT64
+    ) AS longitude,
+
+    LOWER(
+      NULLIF(
+        TRIM(geolocation_city),
+        ''
+      )
+    ) AS geolocation_city,
+
+    UPPER(
+      NULLIF(
+        TRIM(geolocation_state),
+        ''
+      )
+    ) AS geolocation_state
+
+  FROM ${ref("geolocation_staging")}
+
+),
+
+valid_coordinates AS (
+
+  SELECT *
+  FROM cleaned
+
+  WHERE zip_code_prefix IS NOT NULL
+    AND latitude BETWEEN -90 AND 90
+    AND longitude BETWEEN -180 AND 180
+
+),
+
+canonical_locations AS (
+
+  SELECT
+
+    zip_code_prefix,
+
+    AVG(latitude) AS latitude,
+
+    AVG(longitude) AS longitude,
+
+    ARRAY_AGG(
+      geolocation_city
+      IGNORE NULLS
+      ORDER BY geolocation_city
+      LIMIT 1
+    )[SAFE_OFFSET(0)] AS geolocation_city,
+
+    ARRAY_AGG(
+      geolocation_state
+      IGNORE NULLS
+      ORDER BY geolocation_state
+      LIMIT 1
+    )[SAFE_OFFSET(0)] AS geolocation_state,
+
+    COUNT(*) AS source_record_count
+
+  FROM valid_coordinates
+
+  GROUP BY zip_code_prefix
+
+)
+
+SELECT
+  zip_code_prefix,
+  latitude,
+  longitude,
+  geolocation_city,
+  geolocation_state,
+  source_record_count
+
+FROM canonical_locations

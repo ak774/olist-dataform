@@ -1,0 +1,42 @@
+config {
+  type: "table",
+
+  schema: "olist_gold",
+
+  name: "fact_order_items_dimension_quality",
+
+  tags: ["phase_10", "quality"]
+}
+
+SELECT
+
+  COUNT(*) AS total_order_items,
+
+  COUNTIF(has_order_fact) AS items_with_order_fact,
+
+  COUNTIF(has_product_dimension) AS items_with_product_dimension,
+
+  COUNTIF(has_seller_dimension) AS items_with_seller_dimension,
+
+  COUNTIF(NOT has_order_fact) AS items_without_order_fact,
+
+  COUNTIF(NOT has_product_dimension) AS items_without_product_dimension,
+
+  COUNTIF(NOT has_seller_dimension) AS items_without_seller_dimension,
+
+  SAFE_DIVIDE(
+    COUNTIF(has_order_fact),
+    COUNT(*)
+  ) AS order_fact_coverage_rate,
+
+  SAFE_DIVIDE(
+    COUNTIF(has_product_dimension),
+    COUNT(*)
+  ) AS product_dimension_coverage_rate,
+
+  SAFE_DIVIDE(
+    COUNTIF(has_seller_dimension),
+    COUNT(*)
+  ) AS seller_dimension_coverage_rate
+
+FROM ${ref("fact_order_items")}

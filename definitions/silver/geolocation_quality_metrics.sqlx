@@ -1,0 +1,28 @@
+config {
+  type: "table",
+
+  schema: "olist_silver",
+
+  name: "geolocation_quality_metrics",
+
+  tags: ["phase_10", "quality", "silver"]
+}
+
+SELECT
+  COUNT(*) AS total_zip_prefixes,
+
+  SUM(source_record_count) AS total_source_records,
+
+  AVG(source_record_count) AS avg_records_per_zip_prefix,
+
+  MAX(source_record_count) AS max_records_for_single_zip_prefix,
+
+  COUNTIF(geolocation_city IS NULL) AS null_city_count,
+
+  COUNTIF(geolocation_state IS NULL) AS null_state_count,
+
+  COUNTIF(
+    source_record_count > 1
+  ) AS zip_prefixes_with_multiple_source_records
+
+FROM ${ref("geolocation")}

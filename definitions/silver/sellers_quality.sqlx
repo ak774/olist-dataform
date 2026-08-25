@@ -1,0 +1,29 @@
+config {
+  type: "assertion",
+  schema: "olist_assertions",
+  name: "sellers_valid_values",
+  tags: ["phase_10", "quality", "silver"]
+}
+
+SELECT
+  seller_id,
+  seller_zip_code_prefix,
+  seller_city,
+  seller_state
+
+FROM ${ref("sellers")}
+
+WHERE
+
+  seller_id IS NULL
+
+  OR seller_zip_code_prefix IS NULL
+  OR seller_zip_code_prefix <= 0
+
+  OR seller_city IS NULL
+  OR seller_city = ''
+
+  OR seller_state IS NULL
+  OR seller_state = ''
+
+  OR LENGTH(seller_state) != 2

@@ -1,0 +1,87 @@
+config {
+  type: "table",
+
+  schema: "olist_gold",
+
+  name: "fact_order_items",
+
+  tags: ["phase_9", "gold", "fact"],
+
+  assertions: {
+    nonNull: [
+      "order_id",
+      "order_item_id",
+      "product_id",
+      "seller_id"
+    ],
+
+    uniqueKey: [
+      "order_id",
+      "order_item_id"
+    ]
+  },
+
+  bigquery: {
+    partitionBy: "DATE(order_purchase_timestamp)",
+
+    clusterBy: [
+      "product_id",
+      "seller_id"
+    ]
+  }
+}
+
+SELECT
+
+  oi.order_id,
+
+  oi.order_item_id,
+
+  oi.product_id,
+
+  oi.seller_id,
+
+  fo.customer_id,
+
+  fo.customer_unique_id,
+
+  fo.order_status,
+
+  fo.order_purchase_timestamp,
+
+  oi.shipping_limit_ts as shipping_limit_date,
+
+  oi.price AS item_price,
+
+  oi.freight_value,
+
+  (
+    COALESCE(oi.price, 0)
+    + COALESCE(oi.freight_value, 0)
+  ) AS gross_item_value,
+
+  CASE
+    WHEN dp.product_id IS NOT NULL THEN TRUE
+    ELSE FALSE
+  END AS has_product_dimension,
+
+  CASE
+    WHEN ds.seller_id IS NOT NULL THEN TRUE
+    ELSE FALSE
+  END AS has_seller_dimension,
+
+  CASE
+    WHEN fo.order_id IS NOT NULL THEN TRUE
+    ELSE FALSE
+  END AS has_order_fact
+
+FROM ${ref("order_items")} AS oi
+
+LEFT JOIN ${ref("fact_orders")} AS fo
+  ON oi.order_id = fo.order_id
+
+LEFT JOIN ${ref("dim_products")} AS dp
+  ON oi.product_id = dp.product_id
+
+LEFT JOIN ${ref("dim_sellers")} AS ds
+  ON oi.seller_id = ds.seller_id

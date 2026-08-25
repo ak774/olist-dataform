@@ -1,0 +1,42 @@
+config {
+  type: "table",
+
+  schema: "olist_silver",
+
+  name: "products_category_coverage",
+
+  tags: ["phase_10", "quality"]
+}
+
+SELECT
+
+  COUNT(*) AS total_products,
+
+  COUNTIF(
+    p.product_category_name IS NULL
+  ) AS products_without_category,
+
+  COUNTIF(
+    p.product_category_name IS NOT NULL
+    AND ct.product_category_name IS NOT NULL
+  ) AS products_with_translation,
+
+  COUNTIF(
+    p.product_category_name IS NOT NULL
+    AND ct.product_category_name IS NULL
+  ) AS products_without_translation,
+
+  SAFE_DIVIDE(
+    COUNTIF(
+      p.product_category_name IS NOT NULL
+      AND ct.product_category_name IS NOT NULL
+    ),
+    COUNTIF(
+      p.product_category_name IS NOT NULL
+    )
+  ) AS category_translation_match_rate
+
+FROM ${ref("products")} AS p
+
+LEFT JOIN ${ref("category_translation")} AS ct
+  ON p.product_category_name = ct.product_category_name

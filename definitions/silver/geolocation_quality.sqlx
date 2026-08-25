@@ -1,0 +1,29 @@
+config {
+  type: "assertion",
+  schema: "olist_assertions",
+  name: "geolocation_valid_values",
+  tags: ["phase_10", "quality", "silver"]
+}
+
+SELECT
+  zip_code_prefix,
+  latitude,
+  longitude,
+  geolocation_state
+
+FROM ${ref("geolocation")}
+
+WHERE
+
+  zip_code_prefix IS NULL
+
+  OR zip_code_prefix <= 0
+
+  OR latitude IS NULL
+  OR latitude NOT BETWEEN -90 AND 90
+
+  OR longitude IS NULL
+  OR longitude NOT BETWEEN -180 AND 180
+
+  OR geolocation_state IS NOT NULL
+     AND LENGTH(geolocation_state) != 2

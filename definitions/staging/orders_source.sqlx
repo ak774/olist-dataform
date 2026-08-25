@@ -1,0 +1,7 @@
+config {
+  type: "declaration",
+  database: "olist-batch-etl",
+  schema: "olist_staging",
+  name: "orders_staging",
+  tags: ["staging"]
+}

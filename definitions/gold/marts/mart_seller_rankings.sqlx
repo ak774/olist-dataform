@@ -1,0 +1,47 @@
+config {
+  type: "view",
+
+  schema: "olist_gold",
+
+  name: "mart_seller_rankings",
+
+  tags: ["phase_10", "quality"]
+}
+
+SELECT
+
+  seller_id,
+
+  seller_city,
+
+  seller_state,
+
+  seller_performance_segment,
+
+  total_orders,
+
+  total_items_sold,
+
+  total_gross_value,
+
+  avg_gross_value_per_order,
+
+  avg_review_score,
+
+  delivery_rate,
+
+  delayed_delivery_rate,
+
+  RANK() OVER (
+    ORDER BY total_gross_value DESC
+  ) AS revenue_rank,
+
+  RANK() OVER (
+    ORDER BY total_orders DESC
+  ) AS order_rank,
+
+  RANK() OVER (
+    ORDER BY avg_review_score DESC
+  ) AS review_score_rank
+
+FROM ${ref("mart_seller_performance")}

@@ -1,0 +1,48 @@
+config {
+  type: "table",
+
+  schema: "olist_gold",
+
+  name: "fact_orders_monthly_summary",
+
+  tags: ["phase_10", "quality"],
+
+  bigquery: {
+    partitionBy: "order_month"
+  }
+}
+
+SELECT
+
+  DATE_TRUNC(
+    DATE(order_purchase_timestamp),
+    MONTH
+  ) AS order_month,
+
+  COUNT(*) AS total_orders,
+
+  COUNTIF(is_delivered) AS delivered_orders,
+
+  COUNTIF(is_canceled) AS canceled_orders,
+
+  COUNT(DISTINCT customer_unique_id) AS unique_customers,
+
+  AVG(approval_time_hours) AS avg_approval_time_hours,
+
+  AVG(
+    CASE
+      WHEN is_delivered
+      THEN actual_delivery_time_days
+    END
+  ) AS avg_delivery_time_days,
+
+  AVG(
+    CASE
+      WHEN delivery_status = 'delayed'
+      THEN delivery_delay_days
+    END
+  ) AS avg_delay_days
+
+FROM ${ref("fact_orders")}
+
+GROUP BY order_month

@@ -1,0 +1,115 @@
+config {
+  type: "table",
+
+  schema: "olist_gold",
+
+  name: "dim_products",
+  
+  tags: ["phase_9", "gold", "dimension"],
+
+  assertions: {
+    nonNull: [
+      "product_id"
+    ],
+
+    uniqueKey: [
+      "product_id"
+    ]
+  },
+
+  bigquery: {
+    clusterBy: [
+      "product_category_name_english"
+    ]
+  }
+}
+
+WITH product_enriched AS (
+
+  SELECT
+
+    p.product_id,
+
+    p.product_category_name,
+
+    COALESCE(
+      ct.product_category_name_english,
+      'unknown'
+    ) AS product_category_name_english,
+
+    p.product_name_length,
+
+    p.product_description_length,
+
+    p.product_photos_qty,
+
+    p.product_weight_g,
+
+    p.product_length_cm,
+
+    p.product_height_cm,
+
+    p.product_width_cm,
+
+    p.product_volume_cm3
+
+  FROM ${ref("products")} AS p
+
+  LEFT JOIN ${ref("category_translation")} AS ct
+    ON p.product_category_name = ct.product_category_name
+
+)
+
+SELECT
+
+  product_id,
+
+  product_category_name,
+
+  product_category_name_english,
+
+  product_name_length,
+
+  product_description_length,
+
+  product_photos_qty,
+
+  product_weight_g,
+
+  product_length_cm,
+
+  product_height_cm,
+
+  product_width_cm,
+
+  product_volume_cm3,
+
+  CASE
+
+    WHEN product_volume_cm3 IS NULL THEN 'unknown'
+
+    WHEN product_volume_cm3 < 1000 THEN 'small'
+
+    WHEN product_volume_cm3 < 10000 THEN 'medium'
+
+    WHEN product_volume_cm3 < 50000 THEN 'large'
+
+    ELSE 'extra_large'
+
+  END AS product_size_category,
+
+  CASE
+
+    WHEN product_weight_g IS NULL THEN 'unknown'
+
+    WHEN product_weight_g < 500 THEN 'light'
+
+    WHEN product_weight_g < 2000 THEN 'medium'
+
+    WHEN product_weight_g < 10000 THEN 'heavy'
+
+    ELSE 'very_heavy'
+
+  END AS product_weight_category
+
+FROM product_enriched

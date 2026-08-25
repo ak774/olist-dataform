@@ -1,0 +1,28 @@
+config {
+  type: "table",
+
+  schema: "olist_gold",
+
+  name: "dim_sellers_geolocation_quality",
+
+  tags: ["phase_10", "quality"]
+}
+
+SELECT
+
+  COUNT(*) AS total_sellers,
+
+  COUNTIF(has_geolocation) AS sellers_with_geolocation,
+
+  COUNTIF(NOT has_geolocation) AS sellers_without_geolocation,
+
+  SAFE_DIVIDE(
+    COUNTIF(has_geolocation),
+    COUNT(*)
+  ) AS geolocation_coverage_rate,
+
+  COUNT(DISTINCT seller_state) AS distinct_seller_states,
+
+  COUNT(DISTINCT seller_city) AS distinct_seller_cities
+
+FROM ${ref("dim_sellers")}

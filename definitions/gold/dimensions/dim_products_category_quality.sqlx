@@ -1,0 +1,34 @@
+config {
+  type: "table",
+
+  schema: "olist_gold",
+
+  name: "dim_products_category_quality",
+
+  tags: ["phase_10", "quality"]
+}
+
+SELECT
+
+  COUNT(*) AS total_products,
+
+  COUNTIF(
+    product_category_name IS NULL
+  ) AS products_without_source_category,
+
+  COUNTIF(
+    product_category_name_english = 'unknown'
+  ) AS products_without_english_category,
+
+  COUNTIF(
+    product_category_name_english != 'unknown'
+  ) AS products_with_english_category,
+
+  SAFE_DIVIDE(
+    COUNTIF(
+      product_category_name_english != 'unknown'
+    ),
+    COUNT(*)
+  ) AS english_category_coverage_rate
+
+FROM ${ref("dim_products")}

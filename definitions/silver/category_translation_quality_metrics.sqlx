@@ -1,0 +1,29 @@
+config {
+  type: "table",
+
+  schema: "olist_silver",
+
+  name: "category_translation_quality_metrics",
+
+  tags: ["phase_10", "quality", "silver"]
+}
+
+SELECT
+
+  COUNT(*) AS total_category_translations,
+
+  COUNT(DISTINCT product_category_name)
+    AS distinct_portuguese_categories,
+
+  COUNT(DISTINCT product_category_name_english)
+    AS distinct_english_categories,
+
+  COUNTIF(
+    product_category_name IS NULL
+  ) AS null_source_category_count,
+
+  COUNTIF(
+    product_category_name_english IS NULL
+  ) AS null_english_category_count
+
+FROM ${ref("category_translation")}

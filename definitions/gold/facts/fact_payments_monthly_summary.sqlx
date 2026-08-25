@@ -1,0 +1,40 @@
+config {
+  type: "table",
+
+  schema: "olist_gold",
+
+  name: "fact_payments_monthly_summary",
+
+  tags: ["phase_10", "quality"],
+
+  bigquery: {
+    partitionBy: "payment_month"
+  }
+}
+
+SELECT
+
+  DATE_TRUNC(
+    DATE(order_purchase_timestamp),
+    MONTH
+  ) AS payment_month,
+
+  payment_type,
+
+  COUNT(*) AS payment_record_count,
+
+  COUNT(DISTINCT order_id) AS order_count,
+
+  SUM(payment_value) AS total_payment_value,
+
+  AVG(payment_value) AS avg_payment_value,
+
+  AVG(payment_installments) AS avg_installments
+
+FROM ${ref("fact_payments")}
+
+WHERE order_purchase_timestamp IS NOT NULL
+
+GROUP BY
+  payment_month,
+  payment_type

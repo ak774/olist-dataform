@@ -1,0 +1,51 @@
+config {
+  type: "table",
+
+  schema: "olist_gold",
+
+  name: "fact_orders_delivery_quality",
+
+  tags: ["phase_10", "quality"]
+}
+
+SELECT
+
+  COUNT(*) AS total_orders,
+
+  COUNTIF(is_delivered) AS delivered_orders,
+
+  COUNTIF(is_canceled) AS canceled_orders,
+
+  COUNTIF(
+    delivery_status = 'on_time'
+  ) AS on_time_orders,
+
+  COUNTIF(
+    delivery_status = 'delayed'
+  ) AS delayed_orders,
+
+  SAFE_DIVIDE(
+    COUNTIF(delivery_status = 'on_time'),
+    COUNTIF(is_delivered)
+  ) AS on_time_delivery_rate,
+
+  SAFE_DIVIDE(
+    COUNTIF(delivery_status = 'delayed'),
+    COUNTIF(is_delivered)
+  ) AS delayed_delivery_rate,
+
+  AVG(
+    CASE
+      WHEN is_delivered
+      THEN actual_delivery_time_days
+    END
+  ) AS avg_actual_delivery_days,
+
+  AVG(
+    CASE
+      WHEN is_delivered
+      THEN delivery_delay_days
+    END
+  ) AS avg_delivery_delay_days
+
+FROM ${ref("fact_orders")}

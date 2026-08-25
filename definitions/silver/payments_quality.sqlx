@@ -1,0 +1,31 @@
+config {
+  type: "assertion",
+  schema: "olist_assertions",
+  name: "payments_valid_values",
+  tags: ["phase_10", "quality", "silver"]
+}
+
+SELECT
+  order_id,
+  payment_sequential,
+  payment_type,
+  payment_installments,
+  payment_value
+
+FROM ${ref("payments")}
+
+WHERE
+  order_id IS NULL
+
+  OR payment_sequential IS NULL
+
+  OR payment_sequential <= 0
+
+  OR payment_type IS NULL
+  OR payment_type = ''
+
+  OR payment_value IS NULL
+  OR payment_value < 0
+
+  OR payment_installments IS NOT NULL
+     AND payment_installments < 0

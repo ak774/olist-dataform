@@ -1,0 +1,30 @@
+config {
+  type: "assertion",
+
+  schema: "olist_assertions",
+
+  name: "fact_order_items_valid_values",
+
+  tags: ["phase_10", "quality"]
+}
+
+SELECT
+  order_id,
+  order_item_id,
+  price,
+  freight_value
+
+FROM ${ref("order_items")}
+
+WHERE
+  order_id IS NULL
+
+  OR order_item_id IS NULL
+
+  OR product_id IS NULL
+
+  OR seller_id IS NULL
+
+  OR price < 0
+
+  OR freight_value < 0

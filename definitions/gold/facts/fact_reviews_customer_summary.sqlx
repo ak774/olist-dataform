@@ -1,0 +1,38 @@
+config {
+  type: "table",
+
+  schema: "olist_gold",
+
+  name: "fact_reviews_customer_summary",
+
+  tags: ["phase_10", "quality"]
+}
+
+SELECT
+
+  customer_unique_id,
+
+  COUNT(*) AS review_count,
+
+  AVG(review_score) AS avg_review_score,
+
+  MIN(review_score) AS min_review_score,
+
+  MAX(review_score) AS max_review_score,
+
+  COUNTIF(review_sentiment = 'positive') AS positive_review_count,
+
+  COUNTIF(review_sentiment = 'neutral') AS neutral_review_count,
+
+  COUNTIF(review_sentiment = 'negative') AS negative_review_count,
+
+  SAFE_DIVIDE(
+    COUNTIF(review_sentiment = 'positive'),
+    COUNT(*)
+  ) AS positive_review_rate
+
+FROM ${ref("fact_reviews")}
+
+WHERE customer_unique_id IS NOT NULL
+
+GROUP BY customer_unique_id

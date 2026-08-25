@@ -1,0 +1,46 @@
+config {
+  type: "table",
+
+  schema: "olist_gold",
+
+  name: "fact_order_items_sales_summary",
+
+  tags: ["phase_10", "quality"],
+
+  bigquery: {
+    partitionBy: "order_month"
+  }
+}
+
+SELECT
+
+  DATE_TRUNC(
+    DATE(order_purchase_timestamp),
+    MONTH
+  ) AS order_month,
+
+  COUNT(*) AS total_items,
+
+  COUNT(DISTINCT order_id) AS total_orders,
+
+  COUNT(DISTINCT product_id) AS distinct_products_sold,
+
+  COUNT(DISTINCT seller_id) AS active_sellers,
+
+  SUM(item_price) AS total_item_revenue,
+
+  SUM(freight_value) AS total_freight_revenue,
+
+  SUM(gross_item_value) AS total_gross_value,
+
+  AVG(item_price) AS avg_item_price,
+
+  AVG(freight_value) AS avg_freight_value,
+
+  AVG(gross_item_value) AS avg_gross_item_value
+
+FROM ${ref("fact_order_items")}
+
+WHERE order_purchase_timestamp IS NOT NULL
+
+GROUP BY order_month

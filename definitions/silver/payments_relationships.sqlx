@@ -1,0 +1,17 @@
+config {
+  type: "assertion",
+  schema: "olist_assertions",
+  name: "payments_valid_orders",
+  tags: ["phase_10", "quality"]
+}
+
+SELECT
+  p.order_id,
+  p.payment_sequential
+
+FROM ${ref("payments")} AS p
+
+LEFT JOIN ${ref("orders")} AS o
+  ON p.order_id = o.order_id
+
+WHERE o.order_id IS NULL

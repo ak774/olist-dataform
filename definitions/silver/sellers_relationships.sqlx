@@ -1,0 +1,18 @@
+config {
+  type: "assertion",
+  schema: "olist_assertions",
+  name: "order_items_valid_sellers",
+  tags: ["phase_10", "quality"]
+}
+
+SELECT
+  oi.order_id,
+  oi.order_item_id,
+  oi.seller_id
+
+FROM ${ref("order_items")} AS oi
+
+LEFT JOIN ${ref("sellers")} AS s
+  ON oi.seller_id = s.seller_id
+
+WHERE s.seller_id IS NULL

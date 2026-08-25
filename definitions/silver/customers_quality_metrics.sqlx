@@ -1,0 +1,25 @@
+config {
+  type: "table",
+  schema: "olist_silver",
+  name: "customers_quality_metrics",
+  tags: ["phase_10", "quality", "silver"]
+}
+
+SELECT
+  COUNT(*) AS total_records,
+
+  COUNT(DISTINCT customer_id) AS distinct_customer_ids,
+
+  COUNT(DISTINCT customer_unique_id) AS distinct_unique_customers,
+
+  COUNTIF(customer_zip_code_prefix IS NULL) AS null_zip_codes,
+
+  COUNTIF(customer_city IS NULL OR customer_city = '')
+    AS invalid_cities,
+
+  COUNTIF(
+    customer_state IS NULL
+    OR LENGTH(customer_state) != 2
+  ) AS invalid_states
+
+FROM ${ref("customers")}

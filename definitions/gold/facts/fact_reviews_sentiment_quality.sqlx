@@ -1,0 +1,27 @@
+config {
+  type: "assertion",
+
+  schema: "olist_assertions",
+
+  name: "fact_reviews_valid_sentiment",
+
+  tags: ["phase_10", "quality"]
+}
+
+SELECT
+
+  review_id,
+
+  order_id,
+
+  review_score,
+
+  review_sentiment
+
+FROM ${ref("fact_reviews")}
+
+WHERE review_sentiment NOT IN (
+  'negative',
+  'neutral',
+  'positive'
+)

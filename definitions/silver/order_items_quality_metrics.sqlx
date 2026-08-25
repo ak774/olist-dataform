@@ -1,0 +1,32 @@
+config {
+  type: "table",
+  schema: "olist_silver",
+  name: "order_items_quality_metrics",
+  tags: ["phase_10", "quality", "silver"]
+}
+
+SELECT
+
+  COUNT(*) AS total_order_items,
+
+  COUNT(DISTINCT order_id) AS distinct_orders,
+
+  COUNT(DISTINCT product_id) AS distinct_products,
+
+  COUNT(DISTINCT seller_id) AS distinct_sellers,
+
+  COUNTIF(price IS NULL) AS null_price_count,
+
+  COUNTIF(freight_value IS NULL) AS null_freight_count,
+
+  COUNTIF(price < 0) AS negative_price_count,
+
+  COUNTIF(freight_value < 0) AS negative_freight_count,
+
+  SUM(price) AS total_product_value,
+
+  SUM(freight_value) AS total_freight_value,
+
+  SUM(item_total_amount) AS total_item_value
+
+FROM ${ref("order_items")}

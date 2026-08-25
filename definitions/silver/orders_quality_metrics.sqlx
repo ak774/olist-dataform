@@ -1,0 +1,35 @@
+config {
+  type: "table",
+  schema: "olist_silver",
+  name: "orders_quality_metrics",
+  tags: ["phase_10", "quality", "silver"]
+}
+
+SELECT
+  COUNT(*) AS total_orders,
+
+  COUNTIF(order_purchase_ts IS NULL)
+    AS purchase_timestamp_null_count,
+
+  COUNTIF(
+    order_approved_ts IS NOT NULL
+    AND order_approved_ts < order_purchase_ts
+  ) AS approved_before_purchase_count,
+
+  COUNTIF(
+    order_delivered_carrier_ts IS NOT NULL
+    AND order_delivered_carrier_ts < order_purchase_ts
+  ) AS carrier_before_purchase_count,
+
+  COUNTIF(
+    order_delivered_customer_ts IS NOT NULL
+    AND order_delivered_customer_ts < order_purchase_ts
+  ) AS customer_delivery_before_purchase_count,
+
+  COUNTIF(
+    order_delivered_carrier_ts IS NOT NULL
+    AND order_delivered_customer_ts IS NOT NULL
+    AND order_delivered_customer_ts < order_delivered_carrier_ts
+  ) AS customer_delivery_before_carrier_count
+
+FROM ${ref("orders")}

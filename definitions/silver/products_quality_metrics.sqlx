@@ -1,0 +1,35 @@
+config {
+  type: "table",
+  schema: "olist_silver",
+  name: "products_quality_metrics",
+  tags: ["phase_10", "quality", "silver"]
+}
+
+SELECT
+  COUNT(*) AS total_products,
+
+  COUNT(DISTINCT product_id) AS distinct_products,
+
+  COUNTIF(
+    product_category_name IS NULL
+  ) AS products_without_category,
+
+  COUNTIF(
+    product_weight_g IS NULL
+  ) AS products_without_weight,
+
+  COUNTIF(
+    product_length_cm IS NULL
+    OR product_height_cm IS NULL
+    OR product_width_cm IS NULL
+  ) AS products_with_incomplete_dimensions,
+
+  COUNTIF(
+    product_volume_cm3 IS NOT NULL
+  ) AS products_with_calculated_volume,
+
+  AVG(product_weight_g) AS avg_product_weight_g,
+
+  AVG(product_volume_cm3) AS avg_product_volume_cm3
+
+FROM ${ref("products")}

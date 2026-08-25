@@ -1,0 +1,40 @@
+config {
+  type: "assertion",
+
+  schema: "olist_assertions",
+
+  name: "fact_orders_valid_status",
+
+  tags: ["phase_10", "quality"]
+}
+
+SELECT
+  order_id,
+  order_status,
+  delivery_status
+
+FROM ${ref("fact_orders")}
+
+WHERE order_status NOT IN (
+  'created',
+  'approved',
+  'invoiced',
+  'processing',
+  'shipped',
+  'delivered',
+  'unavailable',
+  'canceled'
+)
+
+OR delivery_status NOT IN (
+  'on_time',
+  'delayed',
+  'canceled',
+  'unavailable',
+  'in_transit',
+  'invoiced',
+  'processing',
+  'approved',
+  'created',
+  'other'
+)

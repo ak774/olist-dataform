@@ -1,0 +1,33 @@
+config {
+  type: "table",
+
+  schema: "olist_gold",
+
+  name: "dim_customers_geolocation_quality",
+
+  tags: ["phase_10", "quality"]
+}
+
+SELECT
+
+  COUNT(*) AS total_customers,
+
+  COUNTIF(
+    customer_latitude IS NOT NULL
+    AND customer_longitude IS NOT NULL
+  ) AS customers_with_geolocation,
+
+  COUNTIF(
+    customer_latitude IS NULL
+    OR customer_longitude IS NULL
+  ) AS customers_without_geolocation,
+
+  SAFE_DIVIDE(
+    COUNTIF(
+      customer_latitude IS NOT NULL
+      AND customer_longitude IS NOT NULL
+    ),
+    COUNT(*)
+  ) AS geolocation_coverage_rate
+
+FROM ${ref("dim_customers")}

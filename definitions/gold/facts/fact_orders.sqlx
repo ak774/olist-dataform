@@ -1,0 +1,254 @@
+config {
+  type: "table",
+  schema: "olist_gold",
+  name: "fact_orders",
+  tags: ["phase_9", "gold", "fact"],
+  assertions: {
+    nonNull: [
+      "order_id",
+      "customer_id",
+      "order_status",
+      "order_purchase_timestamp"
+    ],
+    uniqueKey: [
+      "order_id"
+    ]
+  },
+  bigquery: {
+    partitionBy: "DATE(order_purchase_timestamp)",
+    clusterBy: [
+      "customer_unique_id",
+      "order_status"
+    ]
+  }
+}
+
+WITH orders_enriched AS (
+  SELECT
+    o.order_id,
+    o.customer_id,
+    c.customer_unique_id,
+    o.order_status,
+    o.order_purchase_ts,
+    o.order_approved_ts,
+    o.order_delivered_carrier_ts,
+    o.order_delivered_customer_ts,
+    o.order_estimated_delivery_ts
+  FROM ${ref("orders")} AS o
+  LEFT JOIN ${ref("customers")} AS c
+    ON o.customer_id = c.customer_id
+),
+order_sequence_flags AS (
+
+  SELECT
+
+    *,
+
+    -- Approval must happen on or after purchase.
+    CASE
+      WHEN order_purchase_ts IS NULL
+        OR order_approved_ts IS NULL
+      THEN NULL
+
+      WHEN order_approved_ts >= order_purchase_ts
+      THEN TRUE
+
+      ELSE FALSE
+    END AS is_valid_approval_sequence,
+
+
+    -- Carrier handoff should happen on or after approval.
+    CASE
+      WHEN order_approved_ts IS NULL
+        OR order_delivered_carrier_ts IS NULL
+      THEN NULL
+
+      WHEN order_delivered_carrier_ts >= order_approved_ts
+      THEN TRUE
+
+      ELSE FALSE
+    END AS is_valid_carrier_handoff_sequence,
+
+
+    -- Customer delivery should happen on or after purchase.
+    CASE
+      WHEN order_purchase_ts IS NULL
+        OR order_delivered_customer_ts IS NULL
+      THEN NULL
+
+      WHEN order_delivered_customer_ts >= order_purchase_ts
+      THEN TRUE
+
+      ELSE FALSE
+    END AS is_valid_customer_delivery_sequence,
+
+
+    -- Estimated delivery date should normally be on or after purchase.
+    CASE
+      WHEN order_purchase_ts IS NULL
+        OR order_estimated_delivery_ts IS NULL
+      THEN NULL
+
+      WHEN order_estimated_delivery_ts >= order_purchase_ts
+      THEN TRUE
+
+      ELSE FALSE
+    END AS is_valid_estimated_delivery_sequence
+
+  FROM orders_enriched
+
+),
+order_metrics AS (
+  SELECT
+
+    *,
+
+    -- Calculate only when the timestamp sequence is valid.
+    CASE
+      WHEN is_valid_approval_sequence = TRUE
+      THEN TIMESTAMP_DIFF(
+        order_approved_ts,
+        order_purchase_ts,
+        HOUR
+      )
+    END AS approval_time_hours,
+
+
+    -- Invalid source sequence results in NULL, not a negative duration.
+    CASE
+      WHEN is_valid_carrier_handoff_sequence = TRUE
+      THEN TIMESTAMP_DIFF(
+        order_delivered_carrier_ts,
+        order_approved_ts,
+        HOUR
+      )
+    END AS carrier_handoff_time_hours,
+
+
+    CASE
+      WHEN is_valid_customer_delivery_sequence = TRUE
+      THEN TIMESTAMP_DIFF(
+        order_delivered_customer_ts,
+        order_purchase_ts,
+        DAY
+      )
+    END AS actual_delivery_time_days,
+
+
+    CASE
+      WHEN is_valid_estimated_delivery_sequence = TRUE
+      THEN TIMESTAMP_DIFF(
+        order_estimated_delivery_ts,
+        order_purchase_ts,
+        DAY
+      )
+    END AS estimated_delivery_time_days,
+
+
+    -- Negative values are valid here:
+    -- negative = delivered early
+    -- zero     = delivered on estimated date
+    -- positive = delivered late
+    CASE
+      WHEN order_delivered_customer_ts IS NOT NULL
+       AND order_estimated_delivery_ts IS NOT NULL
+      THEN TIMESTAMP_DIFF(
+        order_delivered_customer_ts,
+        order_estimated_delivery_ts,
+        DAY
+      )
+    END AS delivery_delay_days
+
+  FROM order_sequence_flags
+)
+
+SELECT
+  order_id,
+  customer_id,
+  customer_unique_id,
+  order_status,
+  order_purchase_ts as order_purchase_timestamp,
+  order_approved_ts as order_approved_at,
+  order_delivered_carrier_ts as order_delivered_carrier_date,
+  order_delivered_customer_ts as order_delivered_customer_date,
+  order_estimated_delivery_ts as order_estimated_delivery_date,
+  approval_time_hours,
+  carrier_handoff_time_hours,
+  actual_delivery_time_days,
+  estimated_delivery_time_days,
+  delivery_delay_days,
+  is_valid_approval_sequence,
+
+  is_valid_carrier_handoff_sequence,
+
+  is_valid_customer_delivery_sequence,
+
+  is_valid_estimated_delivery_sequence,
+
+  CASE
+    WHEN order_status = 'delivered'
+     AND order_delivered_customer_ts IS NOT NULL
+     AND order_estimated_delivery_ts IS NOT NULL
+     AND order_delivered_customer_ts <= order_estimated_delivery_ts
+    THEN 'on_time'
+
+    WHEN order_status = 'delivered'
+     AND order_delivered_customer_ts IS NOT NULL
+     AND order_estimated_delivery_ts IS NOT NULL
+     AND order_delivered_customer_ts > order_estimated_delivery_ts
+    THEN 'delayed'
+
+    WHEN order_status = 'canceled'
+    THEN 'canceled'
+
+    WHEN order_status = 'unavailable'
+    THEN 'unavailable'
+
+    WHEN order_status = 'shipped'
+    THEN 'in_transit'
+
+    WHEN order_status = 'invoiced'
+    THEN 'invoiced'
+
+    WHEN order_status = 'processing'
+    THEN 'processing'
+
+    WHEN order_status = 'approved'
+    THEN 'approved'
+
+    WHEN order_status = 'created'
+    THEN 'created'
+
+    ELSE 'other'
+  END AS delivery_status,
+  CASE
+    WHEN order_status = 'delivered' THEN TRUE
+    ELSE FALSE
+  END AS is_delivered,
+  CASE
+    WHEN order_status = 'canceled' THEN TRUE
+    ELSE FALSE
+  END AS is_canceled,
+  CASE
+    WHEN order_status = 'delivered'
+     AND delivery_delay_days < 0
+    THEN TRUE
+    ELSE FALSE
+  END AS is_delivered_early,
+
+
+  CASE
+    WHEN order_status = 'delivered'
+     AND delivery_delay_days = 0
+    THEN TRUE
+    ELSE FALSE
+  END AS is_delivered_on_estimated_date,
+
+
+  CASE
+    WHEN order_status = 'delivered'
+     AND delivery_delay_days > 0
+    THEN TRUE
+    ELSE FALSE
+  END AS is_delivered_late
+FROM order_metrics

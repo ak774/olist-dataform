@@ -1,0 +1,19 @@
+config {
+  type: "assertion",
+  schema: "olist_assertions",
+  name: "category_translation_valid_values",
+  tags: ["phase_10", "quality", "silver"]
+}
+
+SELECT
+  product_category_name,
+  product_category_name_english
+
+FROM ${ref("category_translation")}
+
+WHERE
+  product_category_name IS NULL
+  OR product_category_name = ''
+
+  OR product_category_name_english IS NULL
+  OR product_category_name_english = ''

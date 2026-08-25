@@ -1,0 +1,35 @@
+config {
+  type: "table",
+
+  schema: "olist_gold",
+
+  name: "mart_customer_state_summary",
+
+  tags: ["phase_10", "quality"]
+}
+
+SELECT
+
+  customer_state,
+
+  COUNT(*) AS customer_count,
+
+  SUM(total_orders) AS total_orders,
+
+  SUM(total_items_purchased) AS total_items_purchased,
+
+  SUM(total_gross_value) AS total_gross_value,
+
+  AVG(avg_order_value) AS avg_order_value,
+
+  AVG(avg_review_score) AS avg_review_score,
+
+  AVG(delivery_rate) AS avg_delivery_rate,
+
+  AVG(cancellation_rate) AS avg_cancellation_rate
+
+FROM ${ref("mart_customer_analytics")}
+
+WHERE customer_state IS NOT NULL
+
+GROUP BY customer_state

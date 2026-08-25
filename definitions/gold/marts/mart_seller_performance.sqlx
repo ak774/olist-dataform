@@ -1,0 +1,406 @@
+config {
+  type: "table",
+
+  schema: "olist_gold",
+
+  name: "mart_seller_performance",
+
+  tags: ["phase_9", "gold", "mart"],
+
+  assertions: {
+    nonNull: [
+      "seller_id"
+    ],
+
+    uniqueKey: [
+      "seller_id"
+    ]
+  },
+
+  bigquery: {
+    clusterBy: [
+      "seller_state",
+      "seller_performance_segment"
+    ]
+  }
+}
+
+WITH seller_profile AS (
+
+  SELECT
+
+    seller_id,
+
+    seller_city,
+
+    seller_state
+
+  FROM ${ref("dim_sellers")}
+
+),
+
+seller_sales AS (
+
+  SELECT
+
+    seller_id,
+
+    COUNT(*) AS total_items_sold,
+
+    COUNT(DISTINCT order_id) AS total_orders,
+
+    COUNT(DISTINCT product_id) AS distinct_products_sold,
+
+    COUNT(DISTINCT customer_unique_id) AS distinct_customers,
+
+    SUM(item_price) AS total_item_revenue,
+
+    SUM(freight_value) AS total_freight_revenue,
+
+    SUM(gross_item_value) AS total_gross_value,
+
+    MIN(DATE(order_purchase_timestamp)) AS first_sale_date,
+
+    MAX(DATE(order_purchase_timestamp)) AS last_sale_date
+
+  FROM ${ref("fact_order_items")}
+
+  WHERE seller_id IS NOT NULL
+
+  GROUP BY seller_id
+
+),
+
+seller_order_status AS (
+
+  SELECT
+
+    seller_id,
+
+    COUNT(DISTINCT order_id) AS total_status_orders,
+
+    COUNT(DISTINCT IF(order_status = 'delivered', order_id, NULL))
+      AS delivered_orders,
+
+    COUNT(DISTINCT IF(order_status = 'canceled', order_id, NULL))
+      AS canceled_orders,
+
+    COUNT(DISTINCT IF(order_status = 'unavailable', order_id, NULL))
+      AS unavailable_orders,
+
+    COUNT(DISTINCT IF(delivery_status = 'delayed', order_id, NULL))
+      AS delayed_orders,
+
+    COUNT(DISTINCT IF(delivery_status = 'on_time', order_id, NULL))
+      AS on_time_orders,
+
+    AVG(actual_delivery_time_days) AS avg_actual_delivery_time_days,
+
+    AVG(delivery_delay_days) AS avg_delivery_delay_days
+
+  FROM (
+
+    SELECT DISTINCT
+
+      i.seller_id,
+
+      i.order_id,
+
+      o.order_status,
+
+      o.delivery_status,
+
+      o.actual_delivery_time_days,
+
+      o.delivery_delay_days
+
+    FROM ${ref("fact_order_items")} AS i
+
+    INNER JOIN ${ref("fact_orders")} AS o
+      ON i.order_id = o.order_id
+
+    WHERE i.seller_id IS NOT NULL
+
+  )
+
+  GROUP BY seller_id
+
+),
+
+seller_reviews AS (
+
+  SELECT
+
+    seller_id,
+
+    COUNT(DISTINCT review_id) AS total_associated_reviews,
+
+    COUNT(DISTINCT order_id) AS reviewed_orders,
+
+    AVG(review_score) AS avg_review_score,
+
+    MIN(review_score) AS min_review_score,
+
+    MAX(review_score) AS max_review_score,
+
+    COUNT(DISTINCT IF(
+      review_sentiment = 'positive',
+      review_id,
+      NULL
+    )) AS positive_review_count,
+
+    COUNT(DISTINCT IF(
+      review_sentiment = 'neutral',
+      review_id,
+      NULL
+    )) AS neutral_review_count,
+
+    COUNT(DISTINCT IF(
+      review_sentiment = 'negative',
+      review_id,
+      NULL
+    )) AS negative_review_count
+
+  FROM (
+
+    SELECT DISTINCT
+
+      i.seller_id,
+
+      r.order_id,
+
+      r.review_id,
+
+      r.review_score,
+
+      r.review_sentiment
+
+    FROM ${ref("fact_order_items")} AS i
+
+    INNER JOIN ${ref("fact_reviews")} AS r
+      ON i.order_id = r.order_id
+
+    WHERE i.seller_id IS NOT NULL
+
+  )
+
+  GROUP BY seller_id
+
+),
+
+seller_metrics AS (
+
+  SELECT
+
+    s.seller_id,
+
+    p.seller_city,
+
+    p.seller_state,
+
+
+    -- =========================================================
+    -- Sales metrics
+    -- =========================================================
+
+    s.total_items_sold,
+
+    s.total_orders,
+
+    s.distinct_products_sold,
+
+    s.distinct_customers,
+
+    s.total_item_revenue,
+
+    s.total_freight_revenue,
+
+    s.total_gross_value,
+
+    s.first_sale_date,
+
+    s.last_sale_date,
+
+
+    -- =========================================================
+    -- Order and delivery metrics
+    -- =========================================================
+
+    COALESCE(os.delivered_orders, 0) AS delivered_orders,
+
+    COALESCE(os.canceled_orders, 0) AS canceled_orders,
+
+    COALESCE(os.unavailable_orders, 0) AS unavailable_orders,
+
+    COALESCE(os.delayed_orders, 0) AS delayed_orders,
+
+    COALESCE(os.on_time_orders, 0) AS on_time_orders,
+
+    os.avg_actual_delivery_time_days,
+
+    os.avg_delivery_delay_days,
+
+
+    -- =========================================================
+    -- Review metrics
+    -- These are order-associated reviews.
+    -- =========================================================
+
+    COALESCE(r.total_associated_reviews, 0)
+      AS total_associated_reviews,
+
+    COALESCE(r.reviewed_orders, 0)
+      AS reviewed_orders,
+
+    r.avg_review_score,
+
+    r.min_review_score,
+
+    r.max_review_score,
+
+    COALESCE(r.positive_review_count, 0)
+      AS positive_review_count,
+
+    COALESCE(r.neutral_review_count, 0)
+      AS neutral_review_count,
+
+    COALESCE(r.negative_review_count, 0)
+      AS negative_review_count
+
+
+  FROM seller_sales AS s
+
+  LEFT JOIN seller_profile AS p
+    ON s.seller_id = p.seller_id
+
+  LEFT JOIN seller_order_status AS os
+    ON s.seller_id = os.seller_id
+
+  LEFT JOIN seller_reviews AS r
+    ON s.seller_id = r.seller_id
+
+)
+
+SELECT
+
+  *,
+
+  -- =========================================================
+  -- Derived sales KPIs
+  -- =========================================================
+
+  SAFE_DIVIDE(
+    total_item_revenue,
+    total_orders
+  ) AS avg_item_revenue_per_order,
+
+
+  SAFE_DIVIDE(
+    total_gross_value,
+    total_orders
+  ) AS avg_gross_value_per_order,
+
+
+  SAFE_DIVIDE(
+    total_items_sold,
+    total_orders
+  ) AS avg_items_per_order,
+
+
+  SAFE_DIVIDE(
+    total_freight_revenue,
+    total_orders
+  ) AS avg_freight_per_order,
+
+
+  SAFE_DIVIDE(
+    total_freight_revenue,
+    total_gross_value
+  ) AS freight_to_gross_value_rate,
+
+
+  -- =========================================================
+  -- Delivery KPIs
+  -- =========================================================
+
+  SAFE_DIVIDE(
+    delivered_orders,
+    total_orders
+  ) AS delivery_rate,
+
+
+  SAFE_DIVIDE(
+    canceled_orders,
+    total_orders
+  ) AS cancellation_rate,
+
+
+  SAFE_DIVIDE(
+    delayed_orders,
+    delivered_orders
+  ) AS delayed_delivery_rate,
+
+
+  SAFE_DIVIDE(
+    on_time_orders,
+    delivered_orders
+  ) AS on_time_delivery_rate,
+
+
+  -- =========================================================
+  -- Review KPIs
+  -- =========================================================
+
+  SAFE_DIVIDE(
+    reviewed_orders,
+    total_orders
+  ) AS review_coverage_rate,
+
+
+  SAFE_DIVIDE(
+    positive_review_count,
+    total_associated_reviews
+  ) AS positive_review_rate,
+
+
+  SAFE_DIVIDE(
+    negative_review_count,
+    total_associated_reviews
+  ) AS negative_review_rate,
+
+
+  -- =========================================================
+  -- Seller activity duration
+  -- =========================================================
+
+  DATE_DIFF(
+    last_sale_date,
+    first_sale_date,
+    DAY
+  ) AS seller_active_days,
+
+
+  -- =========================================================
+  -- Seller performance segmentation
+  -- Based on total gross sales value.
+  -- =========================================================
+
+  CASE
+
+    WHEN total_gross_value >= 100000
+    THEN 'top_performer'
+
+    WHEN total_gross_value >= 25000
+    THEN 'high_performer'
+
+    WHEN total_gross_value >= 5000
+    THEN 'medium_performer'
+
+    WHEN total_gross_value > 0
+    THEN 'small_performer'
+
+    ELSE 'inactive'
+
+  END AS seller_performance_segment
+
+FROM seller_metrics

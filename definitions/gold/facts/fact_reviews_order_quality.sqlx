@@ -1,0 +1,35 @@
+config {
+  type: "table",
+
+  schema: "olist_gold",
+
+  name: "fact_reviews_order_quality",
+
+  tags: ["phase_10", "quality"]
+}
+
+SELECT
+
+  COUNT(*) AS total_reviews,
+
+  COUNT(DISTINCT order_id) AS distinct_orders_reviewed,
+
+  COUNTIF(has_order_fact) AS reviews_with_order_fact,
+
+  COUNTIF(NOT has_order_fact) AS reviews_without_order_fact,
+
+  SAFE_DIVIDE(
+    COUNTIF(has_order_fact),
+    COUNT(*)
+  ) AS order_fact_coverage_rate,
+
+  COUNTIF(has_review_comment) AS reviews_with_comments,
+
+  COUNTIF(NOT has_review_comment) AS reviews_without_comments,
+
+  SAFE_DIVIDE(
+    COUNTIF(has_review_comment),
+    COUNT(*)
+  ) AS review_comment_rate
+
+FROM ${ref("fact_reviews")}

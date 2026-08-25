@@ -1,0 +1,94 @@
+config {
+  type: "table",
+
+  schema: "olist_silver",
+
+  name: "reviews",
+
+  tags: ["phase_8", "silver"],
+
+  assertions: {
+    nonNull: [
+      "review_id",
+      "order_id",
+      "review_score"
+    ],
+
+    uniqueKey: [
+      "order_id",
+      "review_id"
+    ],
+
+    rowConditions: [
+      "review_score BETWEEN 1 AND 5"
+    ]
+  },
+
+  bigquery: {
+    partitionBy: "DATE(review_creation_ts)",
+
+    clusterBy: [
+      "order_id",
+      "review_score"
+    ]
+  }
+}
+
+WITH cleaned AS (
+
+  SELECT
+
+    TRIM(review_id) AS review_id,
+
+    TRIM(order_id) AS order_id,
+
+    SAFE_CAST(review_score AS INT64) AS review_score,
+
+    NULLIF(
+      TRIM(review_comment_title),
+      ''
+    ) AS review_comment_title,
+
+    NULLIF(
+      TRIM(review_comment_message),
+      ''
+    ) AS review_comment_message,
+
+    SAFE_CAST(
+      review_creation_date AS TIMESTAMP
+    ) AS review_creation_ts,
+
+    SAFE_CAST(
+      review_answer_timestamp AS TIMESTAMP
+    ) AS review_answer_ts
+
+  FROM ${ref("reviews_staging")}
+
+),
+
+deduplicated AS (
+
+  SELECT *
+
+  FROM cleaned
+
+  QUALIFY ROW_NUMBER() OVER (
+    PARTITION BY order_id, review_id
+    ORDER BY review_answer_ts DESC NULLS LAST
+  ) = 1
+
+)
+
+SELECT
+  review_id,
+  order_id,
+  review_score,
+  review_comment_title,
+  review_comment_message,
+  review_creation_ts,
+  review_answer_ts
+
+FROM deduplicated
+
+WHERE order_id IS NOT NULL
+  AND review_id IS NOT NULL

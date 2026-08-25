@@ -1,0 +1,26 @@
+config {
+  type: "assertion",
+
+  schema: "olist_assertions",
+
+  name: "dim_customers_valid_values",
+
+  tags: ["phase_10", "quality"]
+}
+
+SELECT
+  customer_unique_id,
+  customer_record_count,
+  customer_state
+
+FROM ${ref("dim_customers")}
+
+WHERE
+  customer_unique_id IS NULL
+
+  OR customer_record_count <= 0
+
+  OR (
+    customer_state IS NOT NULL
+    AND LENGTH(customer_state) != 2
+  )

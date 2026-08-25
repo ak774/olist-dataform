@@ -1,0 +1,48 @@
+config {
+  type: "table",
+
+  schema: "olist_gold",
+
+  name: "fact_reviews_monthly_summary",
+
+  tags: ["phase_10", "quality"],
+
+  bigquery: {
+    partitionBy: "review_month"
+  }
+}
+
+SELECT
+
+  DATE_TRUNC(
+    DATE(review_creation_date),
+    MONTH
+  ) AS review_month,
+
+  review_score,
+
+  review_sentiment,
+
+  COUNT(*) AS review_count,
+
+  COUNT(DISTINCT order_id) AS distinct_order_count,
+
+  COUNT(DISTINCT customer_unique_id) AS distinct_customer_count,
+
+  AVG(review_response_time_hours) AS avg_review_response_time_hours,
+
+  COUNTIF(has_review_comment) AS reviews_with_comments,
+
+  SAFE_DIVIDE(
+    COUNTIF(has_review_comment),
+    COUNT(*)
+  ) AS review_comment_rate
+
+FROM ${ref("fact_reviews")}
+
+WHERE review_creation_date IS NOT NULL
+
+GROUP BY
+  review_month,
+  review_score,
+  review_sentiment

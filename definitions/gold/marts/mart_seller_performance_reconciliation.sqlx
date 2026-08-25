@@ -1,0 +1,63 @@
+config {
+  type: "assertion",
+
+  schema: "olist_assertions",
+
+  name: "mart_seller_performance_revenue_reconciliation",
+
+  tags: ["phase_10", "reconciliation"]
+}
+
+WITH mart_totals AS (
+
+  SELECT
+
+    SUM(total_item_revenue) AS mart_item_revenue,
+
+    SUM(total_freight_revenue) AS mart_freight_revenue,
+
+    SUM(total_gross_value) AS mart_gross_value
+
+  FROM ${ref("mart_seller_performance")}
+
+),
+
+fact_totals AS (
+
+  SELECT
+
+    SUM(item_price) AS fact_item_revenue,
+
+    SUM(freight_value) AS fact_freight_revenue,
+
+    SUM(gross_item_value) AS fact_gross_value
+
+  FROM ${ref("fact_order_items")}
+
+)
+
+SELECT *
+
+FROM mart_totals
+CROSS JOIN fact_totals
+
+WHERE
+
+  ABS(
+    COALESCE(mart_item_revenue, 0)
+    - COALESCE(fact_item_revenue, 0)
+  ) > 0.01
+
+  OR
+
+  ABS(
+    COALESCE(mart_freight_revenue, 0)
+    - COALESCE(fact_freight_revenue, 0)
+  ) > 0.01
+
+  OR
+
+  ABS(
+    COALESCE(mart_gross_value, 0)
+    - COALESCE(fact_gross_value, 0)
+  ) > 0.01

@@ -1,0 +1,35 @@
+config {
+  type: "assertion",
+  schema: "olist_assertions",
+  name: "products_valid_values",
+  tags: ["phase_10", "quality", "silver"]
+}
+
+SELECT
+  product_id,
+  product_name_length,
+  product_description_length,
+  product_photos_qty,
+  product_weight_g,
+  product_length_cm,
+  product_height_cm,
+  product_width_cm
+
+FROM ${ref("products")}
+
+WHERE
+  product_id IS NULL
+
+  OR product_name_length < 0
+
+  OR product_description_length < 0
+
+  OR product_photos_qty < 0
+
+  OR product_weight_g < 0
+
+  OR product_length_cm < 0
+
+  OR product_height_cm < 0
+
+  OR product_width_cm < 0
